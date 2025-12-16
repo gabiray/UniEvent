@@ -1,0 +1,73 @@
+# ------------------------------------------------------
+# SISTEM DE OPERARE & EDITOR (Windows/Mac/VSCode)
+# ------------------------------------------------------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ------------------------------------------------------
+# PYTHON / DJANGO (Backend)
+# ------------------------------------------------------
+# Fisiere compilate (nu avem nevoie de ele)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Mediu Virtual
+venv/
+env/
+.venv/
+backend/venv/
+
+# Variabile de mediu si secrete (CRITIC DE SECURITATE)
+.env
+backend/.env
+
+# Baza de date locala (nu vrem sa suprascriem datele colegilor)
+*.sqlite3
+db.sqlite3
+backend/db.sqlite3
+
+# Fisiere Media incarcate de useri (poze profil, poze eveniment)
+media/
+backend/media/
+
+# Fisiere Statice colectate (generate automat cu collectstatic)
+staticfiles/
+backend/staticfiles/
+
+# Email-uri salvate local (daca folosesti file based email backend)
+sent_emails/
+
+# ------------------------------------------------------
+# NODE.JS / REACT (Frontend)
+# ------------------------------------------------------
+# Dependinte (mii de fisiere care se instaleaza cu npm install)
+node_modules/
+frontend/node_modules/
+
+# Build-ul de productie (generat cu npm run build)
+build/
+dist/
+frontend/build/
+frontend/dist/
+
+# Fisiere de mediu local (secrete frontend)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+frontend/.env.local
+
+# Loguri de eroare
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage teste
+coverage/

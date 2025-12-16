@@ -1,0 +1,14 @@
+asgiref              # Utilitare pentru ASGI necesare Django
+Django               # Framework web principal
+django-cors-headers  # Configurare si suport CORS
+djangorestframework  # Framework pentru API-uri REST
+djangorestframework-simplejwt  # Autentificare JWT pentru DRF
+PyJWT                # Generare si validare JWT
+pytz                 # Gestionare fusuri orare
+sqlparse             # Parsare SQL, folosit de Django
+psycopg2-binary      # Driver PostgreSQL
+python-dotenv        # Incarcare variabile din .env
+Pillow               # Procesare imagini
+qrcode               # Generare coduri QR
+django-filter        # Filtrare pentru DRF
+drf-yasg             # Documentatie Swagger/OpenAPI

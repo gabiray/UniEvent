@@ -1,5 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "../../styles/CreateEvent.module.css";
+
+// --- Servicii ---
+import api from "../../services/api";
 
 // --- Harta ---
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
@@ -46,6 +49,10 @@ const LocationMarker = ({ position, setPosition, handleAddressFetch }) => {
 const CreateEventModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
+  const [facultiesList, setFacultiesList] = useState([]);
+  const [departmentsList, setDepartmentsList] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
+
   // --- SETUP SUCEAVA DEFAULT ---
   const defaultLat = 47.6426;
   const defaultLng = 26.2547;
@@ -74,6 +81,35 @@ const CreateEventModal = ({ isOpen, onClose }) => {
     lng: defaultLng,
   });
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Folosim Promise.all pentru a le cere pe toate simultan (mai rapid)
+        const [facRes, deptRes, catRes] = await Promise.all([
+            api.get('api/events/faculties/'),
+            api.get('api/events/departments/'),
+            api.get('api/events/categories/')
+        ]);
+
+        setFacultiesList(facRes.data);
+        setDepartmentsList(deptRes.data);
+        setCategoriesList(catRes.data);
+
+      } catch (error) {
+        console.error("Nu am putut încărca listele (facultăți/categorii):", error);
+      }
+    };
+
+    if (isOpen) {
+        fetchData();
+    }
+  }, [isOpen]);
+
+  // Filtrăm departamentele în funcție de facultatea selectată
+  const filteredDepartments = departmentsList.filter(dept => {
+      return dept.faculty && dept.faculty.id === parseInt(formData.faculty);
+  });
+
   const fetchAddress = async (lat, lng) => {
     try {
       const response = await fetch(
@@ -97,7 +133,16 @@ const CreateEventModal = ({ isOpen, onClose }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    setFormData((prev) => {
+        const newData = { ...prev, [name]: value };
+        
+        // Dacă utilizatorul schimbă facultatea, resetăm departamentul selectat anterior
+        if (name === 'faculty') {
+            newData.department = "";
+        }
+        return newData;
+    });
   };
 
   const handleFileChange = (e, type) => {
@@ -149,33 +194,29 @@ const CreateEventModal = ({ isOpen, onClose }) => {
         return;
       }
 
-      const response = await fetch("http://127.0.0.1:8000/api/events/", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`, 
-        },
-        body: data,
-      });
+      const response = await api.post("/api/events/", data);
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log("Success:", result);
+      console.log("Eveniment creat:", response.data);
 
-        if (statusType === 'draft') {
-            alert("Ciorna a fost salvată cu succes! O poți edita ulterior din profilul tău.");
-        } else {
-            // Mesajul pentru publicare (pending)
-            alert("Evenimentul a fost trimis cu succes! \nAcesta va fi vizibil pe site doar după ce este VALIDAT de un administrator. Te rugăm să aștepți aprobarea.");
-        }
-        onClose(); 
-      } else {
-        const errorData = await response.json();
-        console.error("Eroare server:", errorData);
-        alert("Eroare la salvare:\n" + JSON.stringify(errorData, null, 2));
+      if (statusType === "draft") {
+        alert(
+          "Ciorna a fost salvată cu succes!\nO poți edita ulterior din profilul tău."
+        );
+       } else {
+        alert(
+          "Evenimentul a fost trimis cu succes!\nAcesta va fi vizibil pe site doar după ce este validat de un administrator."
+        );
       }
+
+      onClose();
     } catch (error) {
-      console.error("Eroare rețea:", error);
-      alert("A apărut o eroare de conexiune.");
+      console.error("Eroare:", error);
+      
+      if (error.response) {
+        alert(`Eroare server (${error.response.status}):\n` + JSON.stringify(error.response.data, null, 2));
+      } else {
+        alert("A apărut o eroare de conexiune. Verifică dacă serverul e pornit.");
+      }
     }
   };
 
@@ -253,30 +294,23 @@ const CreateEventModal = ({ isOpen, onClose }) => {
             <div className={styles.col}>
               <label className={styles.label}>Categorie</label>
               <div className={styles.categoriesWrapper}>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="1" checked={formData.category === "1"} onChange={handleChange} className={styles.radioInput} />
-                    Academic
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="2" checked={formData.category === "2"} onChange={handleChange} className={styles.radioInput} />
-                    Workshop
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="3" checked={formData.category === "3"} onChange={handleChange} className={styles.radioInput} />
-                    Conferință
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="4" checked={formData.category === "4"} onChange={handleChange} className={styles.radioInput} />
-                    Cultural
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="5" checked={formData.category === "5"} onChange={handleChange} className={styles.radioInput} />
-                    Social
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="6" checked={formData.category === "6"} onChange={handleChange} className={styles.radioInput} />
-                    Sport
-                </label>
+                {categoriesList.length > 0 ? (
+                    categoriesList.map(cat => (
+                        <label key={cat.id} className={styles.radioLabel}>
+                            <input 
+                                type="radio" 
+                                name="category" 
+                                value={cat.id} 
+                                checked={parseInt(formData.category) === cat.id} 
+                                onChange={handleChange} 
+                                className={styles.radioInput} 
+                            />
+                            {cat.name}
+                        </label>
+                    ))
+                ) : (
+                    <p style={{fontSize: '0.8rem', color: 'red'}}>Nicio categorie disponibilă.</p>
+                )}
               </div>
             </div>
           </div>
@@ -318,6 +352,8 @@ const CreateEventModal = ({ isOpen, onClose }) => {
               <FiCheckCircle /> Afiliere
             </div>
             <div className={styles.row}>
+              
+              {/* FACULTATE */}
               <div className={styles.col}>
                 <label className={styles.label}>
                   Facultate <span style={{ color: "red" }}>*</span>
@@ -330,10 +366,15 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   required
                 >
                   <option value="">Alege...</option>
-                  <option value="1">FIESC</option>
-                  <option value="2">FIMAR</option>
+                  {facultiesList.map(fac => (
+                      <option key={fac.id} value={fac.id}>
+                          {fac.name} ({fac.abbreviation})
+                      </option>
+                  ))}
                 </select>
               </div>
+
+              {/* DEPARTAMENT */}
               <div className={styles.col}>
                 <label className={styles.label}>Departament</label>
                 <select
@@ -341,9 +382,21 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   className={styles.select}
                   value={formData.department}
                   onChange={handleChange}
+                  // Dacă nu e selectată o facultate, dezactivăm departamentele
+                  disabled={!formData.faculty} 
                 >
                   <option value="">Opțional...</option>
-                  <option value="1">Calculatoare</option>
+                  
+                  {/* Afișăm DOAR departamentele filtrate */}
+                  {filteredDepartments.length > 0 ? (
+                      filteredDepartments.map(dept => (
+                        <option key={dept.id} value={dept.id}>
+                            {dept.name}
+                        </option>
+                      ))
+                  ) : (
+                      formData.faculty && <option disabled>Această facultate nu are departamente definite.</option>
+                  )}
                 </select>
               </div>
             </div>

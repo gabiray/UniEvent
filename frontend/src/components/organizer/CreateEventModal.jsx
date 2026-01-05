@@ -84,7 +84,6 @@ const CreateEventModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Folosim Promise.all pentru a le cere pe toate simultan (mai rapid)
         const [facRes, deptRes, catRes] = await Promise.all([
             api.get('api/events/faculties/'),
             api.get('api/events/departments/'),

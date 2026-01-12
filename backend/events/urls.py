@@ -4,11 +4,13 @@ from .views import (
   EventDetailView,
   FacultyListView, 
   DepartmentListView, 
-  CategoryListView
+  CategoryListView,
+  MyEventsListView
 )
 
 urlpatterns = [
     path("", EventListCreateView.as_view()),
+    path("my/", MyEventsListView.as_view(), name="my-events"),
     path("<int:pk>/", EventDetailView.as_view()),
 
     # Endpoints for Faculties, Departments, Categories - DIANA

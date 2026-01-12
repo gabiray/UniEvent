@@ -128,6 +128,16 @@
   background-color: #fff5f5;
 }
 
+.favBtnActive {
+  border-color: #e53e3e;
+  color: #e53e3e;
+  background-color: #fff5f5;
+}
+
+.favBtnActive svg {
+  color: #e53e3e;
+}
+
 /* --- Butonul "Vezi afisul" --- */
 .viewCoverBtn {
   position: absolute;

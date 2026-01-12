@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions, filters
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Count
 
 from .models import Event, Faculty, Department, Category
 from .serializers import (
@@ -29,7 +30,7 @@ class EventListCreateView(generics.ListCreateAPIView):
         Această metodă decide ce evenimente sunt returnate.
         Pentru lista publică (GET), vrem doar evenimentele PUBLICATE.
         """
-        return Event.objects.filter(status='published').order_by('-start_date')
+        return Event.objects.filter(status='published').annotate(tickets_count=Count('tickets')).order_by('-start_date')
     
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -66,17 +67,30 @@ class CategoryListView(generics.ListAPIView):
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
 
+# 06.01.2026 List Events Organized by the Authenticated User
+class MyEventsListView(generics.ListAPIView):
+    serializer_class = EventSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Event.objects.filter(organizer=self.request.user).annotate(tickets_count=Count('tickets')).order_by("-created_at")
+
+
 # Retrieve, Update, Delete Event
 class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     Vizualizare, editare și ștergere eveniment.
     """
+    queryset = Event.objects.annotate(tickets_count=Count('tickets'))
 
-    serializer_class = EventSerializer
-    queryset = Event.objects.all()
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return EventCreateSerializer
+        return EventSerializer
 
     def get_permissions(self):
         if self.request.method in ["PUT", "PATCH", "DELETE"]:
             return [IsEventOrganizer()]
         return [permissions.AllowAny()]
+
 

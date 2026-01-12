@@ -153,6 +153,8 @@ npm install
 
 ```bash
 npm run dev
+npm install leaflet react-leaflet
+npm i react-qr-code
 ```
 
 Frontendul va rula la:

@@ -1,0 +1,11 @@
+schemaVersion: "1.2"
+endpoints:
+    - name: uni-event-backend-be2
+      displayName: uni-event-backend
+      service:
+        basePath: /
+        port: 8000
+      type: REST
+      networkVisibilities:
+        - Project
+        - Public

@@ -55,7 +55,7 @@ function Navbar() {
   // Link-uri comune (pentru ambele roluri)
   const navLinks = [
     { to: "/", label: "Acasă" },
-    { to: "/notifications", label: "Notificări" },
+    { to: "/", label: "Notificări" },
   ];
 
   // Link-uri specifice rolului

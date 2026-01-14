@@ -41,8 +41,11 @@ class EventSerializer(serializers.ModelSerializer):
         return getattr(obj, "tickets_count", None) or obj.tickets.count()
 
     def get_seats_left(self, obj):
+        if obj.max_participants is None:
+            return None
         sold = self.get_tickets_count(obj)
         return max(obj.max_participants - sold, 0)
+
 
     faculty = FacultySerializer(read_only=True)
     faculty_id = serializers.PrimaryKeyRelatedField(

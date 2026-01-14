@@ -1,10 +1,11 @@
 # Importuri externe
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import NotFound
 
 # Importuri locale
 from .models import CustomUser, OrganizerRequest
@@ -12,7 +13,8 @@ from .serializers import (
     MyTokenObtainPairSerializer,
     UserSerializer,
     RegisterSerializer,
-    OrganizerRequestSerializer
+    OrganizerRequestSerializer,
+    ChangePasswordSerializer
 )
 from .services import google_validate_id_token, google_get_or_create_user
 
@@ -46,6 +48,16 @@ class OrganizerRequestCreateView(generics.CreateAPIView):
         serializer.save(user=request.user)
 
         return Response(serializer.data, status=201)
+
+class OrganizerRequestMeView(generics.RetrieveAPIView):
+    serializer_class = OrganizerRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        obj = OrganizerRequest.objects.filter(user=self.request.user).order_by("-created_at").first()
+        if not obj:
+            raise NotFound("Nu ai nicio cerere de organizator.")
+        return obj
     
 # View for admin to list all organizer requests
 class OrganizerRequestListAdminView(generics.ListAPIView):
@@ -111,3 +123,22 @@ class GoogleLoginView(APIView):
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         })
+    
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        old_password = serializer.validated_data["old_password"]
+        new_password = serializer.validated_data["new_password"]
+
+        if not user.check_password(old_password):
+            return Response({"detail": "Parola veche este greșită."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"detail": "Parola a fost schimbată cu succes."}, status=status.HTTP_200_OK)

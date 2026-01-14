@@ -111,7 +111,7 @@ const FilterDropdown = ({
           </div>
 
           <div className={styles.grid}>
-            {/* Ziua (simplu) */}
+            {/* Ziua */}
             <div className={styles.field}>
               <div className={styles.label}>
                 <FiCalendar className={styles.labelIcon} />

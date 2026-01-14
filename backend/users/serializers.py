@@ -54,3 +54,13 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['full_name'] = f"{user.first_name} {user.last_name}"
 
         return token
+    
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password2 = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if attrs["new_password"] != attrs["new_password2"]:
+            raise serializers.ValidationError({"new_password2": "Parolele nu se potrivesc."})
+        return attrs

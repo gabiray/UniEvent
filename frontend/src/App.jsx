@@ -14,10 +14,12 @@ import DashboardWrapper from "./pages/DashboardWrapper";
 
 import OrganizerDashboardPage from "./pages/OrganizerDashboardPage";
 import OrganizerScanPage from "./pages/OrganizerScanPage";
+import OrganizerScanEventPage from "./pages/OrganizerScanEventPage";
+import OrganizerStatisticsPage from "./pages/OrganizerStatisticsPage";
 
 import FavoritesPage from "./pages/FavoritesPage";
 import MyTicketsPage from "./pages/MyTicketsPage";
-import OrganizerScanEventPage from "./pages/OrganizerScanEventPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function Logout() {
   localStorage.clear();
@@ -63,6 +65,15 @@ function App() {
         />
 
         <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/organizer/dashboard"
           element={
             <ProtectedRoute requiredRole="organizer">
@@ -85,6 +96,15 @@ function App() {
           element={
             <ProtectedRoute requiredRole="organizer">
               <OrganizerScanEventPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/organizer/stats"
+          element={
+            <ProtectedRoute requiredRole="organizer">
+              <OrganizerStatisticsPage />
             </ProtectedRoute>
           }
         />

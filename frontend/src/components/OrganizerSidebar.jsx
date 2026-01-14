@@ -32,11 +32,6 @@ const OrganizerSidebar = ({ onOpenCreate }) => {
             icon: <FaChartPie />, 
             label: "Statistici" 
         },
-        { 
-            to: "/organizer/scan", 
-            icon: <BsQrCodeScan />, 
-            label: "Scanare Bilete" 
-        },
     ];
 
     return (

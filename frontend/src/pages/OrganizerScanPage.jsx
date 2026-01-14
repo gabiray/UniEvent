@@ -14,6 +14,10 @@ function OrganizerScanPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [selectedEvent] = useState(null);
+  const [statusMsg, setStatusMsg] = useState("");
+  const [lastResult, setLastResult] = useState(null);
+
   const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -87,6 +91,18 @@ function OrganizerScanPage() {
     navigate(`/organizer/scan/${ev.id}`);
   };
 
+  const handleDecode = async (qrText) => {
+    // aici chemi backend-ul tău de check-in:
+    // POST /api/interactions/tickets/checkin/  { event_id, qr_code_data: qrText }
+    const res = await api.post("/api/interactions/tickets/checkin/", {
+      event_id: selectedEvent.id,
+      qr_code_data: qrText,
+    });
+
+    setLastResult(res.data); // ex: { ok: true, already_checked: false, user:..., ticket_id:... }
+    setStatusMsg(res.data?.message || "Scanare procesată.");
+  };
+
   return (
     <Layout>
       <div className={styles.container}>
@@ -99,6 +115,25 @@ function OrganizerScanPage() {
 
         {loading && <p>Se încarcă evenimentele...</p>}
         {!loading && error && <p className={styles.error}>{error}</p>}
+
+        {selectedEvent ? (
+          <>
+            <h2>{selectedEvent.title}</h2>
+            <p style={{ fontWeight: 700, color: "#666" }}>{statusMsg}</p>
+
+            <QrScanner
+              active={true}
+              onStatus={setStatusMsg}
+              onDecode={handleDecode}
+            />
+
+            {lastResult ? (
+              <div style={{ marginTop: 12, fontWeight: 800 }}>
+                {lastResult?.message || "OK"}
+              </div>
+            ) : null}
+          </>
+        ) : null}
 
         {!loading && !error && (
           <>

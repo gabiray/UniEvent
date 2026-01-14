@@ -3,7 +3,6 @@ from django.db import models
 from django.conf import settings
 
 # 1. Managerul personalizat pentru User
-# Avem nevoie de el pentru ca am scos username-ul si folosim email.
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         """
@@ -14,7 +13,6 @@ class CustomUserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         
-        # Aici setam parola (daca e None, userul nu se poate loga direct - util pt Google Login)
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -48,18 +46,17 @@ class CustomUser(AbstractUser):
     # is_active
     
     # --- MODIFICARI FATA DE STANDARD ---
-    username = None  # Stergem username-ul
-    email = models.EmailField('email address', unique=True) # Facem email-ul unic si obligatoriu
+    username = None  
+    email = models.EmailField('email address', unique=True) 
 
     # --- CAMPURILE TALE EXTRA ---
     is_student = models.BooleanField(default=True)
     is_organizer = models.BooleanField(default=False)
 
     # Setari de configurare Django
-    USERNAME_FIELD = 'email' # Spunem ca logarea se face cu email
-    REQUIRED_FIELDS = []     # Nu cerem alte campuri obligatorii la creare superuser
+    USERNAME_FIELD = 'email' 
+    REQUIRED_FIELDS = []    
 
-    # Legam managerul definit mai sus
     objects = CustomUserManager()
 
     def __str__(self):

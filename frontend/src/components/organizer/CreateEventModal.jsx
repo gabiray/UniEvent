@@ -1,5 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styles from "../../styles/CreateEvent.module.css";
+
+// --- Servicii ---
+import api from "../../services/api";
 
 // --- Harta ---
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
@@ -43,35 +46,126 @@ const LocationMarker = ({ position, setPosition, handleAddressFetch }) => {
   return position === null ? null : <Marker position={position}></Marker>;
 };
 
-const CreateEventModal = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
+const defaultLat = 47.6426;
+const defaultLng = 26.2547;
 
-  // --- SETUP SUCEAVA DEFAULT ---
-  const defaultLat = 47.6426;
-  const defaultLng = 26.2547;
+const INITIAL_DATA = {
+  title: "",
+  seats: "",
+  description: "",
+  startDate: "",
+  endDate: "",
+  category: "",
+  faculty: "",
+  department: "",
+  locationName: "",
+  locationAddress: "",
+  googleMapsLink: "",
+  lat: defaultLat,
+  lng: defaultLng,
+  coverImage: null,
+  document: null,
+};
 
-  const initialData = {
-    title: "",
-    seats: "", 
-    description: "",
-    startDate: "",
-    endDate: "",
-    category: "", // ID-ul categoriei
-    faculty: "", // ID-ul facultății
-    department: "", // ID-ul departamentului
-    locationName: "",
-    locationAddress: "",
-    googleMapsLink: "",
-    lat: defaultLat,
-    lng: defaultLng,
-    coverImage: null,
-    document: null,
-  };
+const CreateEventModal = ({ isOpen, onClose, initialEvent = null }) => {
+  const [facultiesList, setFacultiesList] = useState([]);
+  const [departmentsList, setDepartmentsList] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [errors, setErrors] = useState({});
 
-  const [formData, setFormData] = useState(initialData);
+  const [formData, setFormData] = useState(INITIAL_DATA);
   const [markerPosition, setMarkerPosition] = useState({
     lat: defaultLat,
     lng: defaultLng,
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (initialEvent) {
+      setFormData({
+        ...INITIAL_DATA,
+        title: initialEvent.title || "",
+        seats: initialEvent.max_participants ?? "",
+        description: initialEvent.description || "",
+        startDate: initialEvent.start_date
+          ? String(initialEvent.start_date).slice(0, 16)
+          : "",
+        endDate: initialEvent.end_date
+          ? String(initialEvent.end_date).slice(0, 16)
+          : "",
+        category: initialEvent.category?.id
+          ? String(initialEvent.category.id)
+          : "",
+        faculty: initialEvent.faculty?.id
+          ? String(initialEvent.faculty.id)
+          : "",
+        department: initialEvent.department?.id
+          ? String(initialEvent.department.id)
+          : "",
+        locationName: initialEvent.location?.name || "",
+        locationAddress: initialEvent.location?.address || "",
+        googleMapsLink: initialEvent.location?.google_maps_link || "",
+        coverImage: null,
+        document: null,
+      });
+    } else {
+      setFormData(INITIAL_DATA);
+    }
+
+    setMarkerPosition({ lat: defaultLat, lng: defaultLng });
+    setErrors({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialEvent, defaultLat, defaultLng, INITIAL_DATA]);
+
+  useEffect(() => {
+    const errorKeys = Object.keys(errors);
+    if (errorKeys.length === 0) return;
+
+    const firstErrorKey = errorKeys[0];
+    const ref = refs[firstErrorKey];
+
+    if (ref?.current) {
+      ref.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+      if (typeof ref.current.focus === "function") {
+        ref.current.focus();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errors]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [facRes, deptRes, catRes] = await Promise.all([
+          api.get("api/events/faculties/"),
+          api.get("api/events/departments/"),
+          api.get("api/events/categories/"),
+        ]);
+
+        setFacultiesList(facRes.data);
+        setDepartmentsList(deptRes.data);
+        setCategoriesList(catRes.data);
+      } catch (error) {
+        console.error(
+          "Nu am putut încărca listele (facultăți/categorii):",
+          error
+        );
+      }
+    };
+
+    if (isOpen) {
+      fetchData();
+    }
+  }, [isOpen]);
+
+  // Filtrăm departamentele în funcție de facultatea selectată
+  const filteredDepartments = departmentsList.filter((dept) => {
+    return dept.faculty && dept.faculty.id === parseInt(formData.faculty);
   });
 
   const fetchAddress = async (lat, lng) => {
@@ -97,7 +191,16 @@ const CreateEventModal = ({ isOpen, onClose }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    setFormData((prev) => {
+      const newData = { ...prev, [name]: value };
+
+      // Dacă utilizatorul schimbă facultatea, resetăm departamentul selectat anterior
+      if (name === "faculty") {
+        newData.department = "";
+      }
+      return newData;
+    });
   };
 
   const handleFileChange = (e, type) => {
@@ -107,20 +210,82 @@ const CreateEventModal = ({ isOpen, onClose }) => {
 
   const handleReset = () => {
     if (window.confirm("Sigur resetezi toate câmpurile?")) {
-      setFormData(initialData);
+      setFormData(INITIAL_DATA);
       setMarkerPosition({ lat: defaultLat, lng: defaultLng });
     }
   };
 
+  const validateForm = (statusType) => {
+    const nextErrors = {};
+
+    const title = (formData.title || "").trim();
+    const description = (formData.description || "").trim();
+    const locationName = (formData.locationName || "").trim();
+    const locationAddress = (formData.locationAddress || "").trim();
+
+    const seats = Number(formData.seats);
+
+    if (!Number.isFinite(seats) || seats < 1) {
+      nextErrors.max_participants =
+        "Numărul de locuri trebuie să fie cel puțin 1.";
+    }
+
+    if (statusType === "pending") {
+      if (title.length < 5)
+        nextErrors.title = "Titlul trebuie să aibă cel puțin 5 caractere.";
+      if (description.length < 5)
+        nextErrors.description =
+          "Descrierea trebuie să aibă cel puțin 5 caractere.";
+      if (!formData.category)
+        nextErrors.category =
+          "Categoria este obligatorie pentru publicare/validare.";
+      if (!locationName)
+        nextErrors.location_name = "Numele locației este obligatoriu.";
+      if (!locationAddress)
+        nextErrors.location_address =
+          "Adresa este obligatorie pentru publicare/validare.";
+
+      const start = formData.startDate ? new Date(formData.startDate) : null;
+      const end = formData.endDate ? new Date(formData.endDate) : null;
+
+      if (!start || isNaN(start.getTime())) {
+        nextErrors.start_date = "Data de început este obligatorie.";
+      } else if (start.getTime() < Date.now() - 60 * 1000) {
+        nextErrors.start_date = "Data de început nu poate fi în trecut.";
+      }
+
+      if (!end || isNaN(end.getTime())) {
+        nextErrors.end_date = "Data de sfârșit este obligatorie.";
+      } else if (
+        start &&
+        !isNaN(start.getTime()) &&
+        end.getTime() <= start.getTime()
+      ) {
+        nextErrors.end_date =
+          "Data de sfârșit trebuie să fie după data de început.";
+      }
+    }
+
+    return nextErrors;
+  };
+
   // --- FUNCȚIA PRINCIPALĂ DE TRIMITERE A DATELOR ---
   const sendEventData = async (statusType) => {
+    setErrors({});
+    const localErrors = validateForm(statusType);
+    setErrors(localErrors);
+
+    if (Object.keys(localErrors).length > 0) {
+      return;
+    }
+
     // 1. Construim FormData
     const data = new FormData();
 
     // Câmpuri text directe
     data.append("title", formData.title);
     data.append("description", formData.description);
-    data.append("max_participants", formData.seats); 
+    data.append("max_participants", formData.seats);
     data.append("start_date", formData.startDate);
     data.append("end_date", formData.endDate);
     data.append("status", statusType);
@@ -132,7 +297,7 @@ const CreateEventModal = ({ isOpen, onClose }) => {
       data.append("google_maps_link", formData.googleMapsLink);
     }
 
-    // Chei Străine 
+    // Chei Străine
     if (formData.faculty) data.append("faculty", formData.faculty);
     if (formData.department) data.append("department", formData.department);
     if (formData.category) data.append("category", formData.category);
@@ -142,52 +307,75 @@ const CreateEventModal = ({ isOpen, onClose }) => {
     if (formData.document) data.append("file", formData.document);
 
     try {
-      const token = localStorage.getItem("access_token"); 
+      const token = localStorage.getItem("access_token");
 
       if (!token) {
         alert("Nu ești autentificat!");
         return;
       }
 
-      const response = await fetch("http://127.0.0.1:8000/api/events/", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`, 
-        },
-        body: data,
-      });
+      const response = initialEvent
+        ? await api.patch(`/api/events/${initialEvent.id}/`, data)
+        : await api.post("/api/events/", data);
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log("Success:", result);
+      console.log("Eveniment creat:", response.data);
 
-        if (statusType === 'draft') {
-            alert("Ciorna a fost salvată cu succes! O poți edita ulterior din profilul tău.");
-        } else {
-            // Mesajul pentru publicare (pending)
-            alert("Evenimentul a fost trimis cu succes! \nAcesta va fi vizibil pe site doar după ce este VALIDAT de un administrator. Te rugăm să aștepți aprobarea.");
-        }
-        onClose(); 
+      if (statusType === "draft") {
+        alert(
+          "Ciorna a fost salvată cu succes!\nO poți edita ulterior din profilul tău."
+        );
       } else {
-        const errorData = await response.json();
-        console.error("Eroare server:", errorData);
-        alert("Eroare la salvare:\n" + JSON.stringify(errorData, null, 2));
+        alert(
+          "Evenimentul a fost trimis cu succes!\nAcesta va fi vizibil pe site doar după ce este validat de un administrator."
+        );
       }
+
+      onClose();
     } catch (error) {
-      console.error("Eroare rețea:", error);
-      alert("A apărut o eroare de conexiune.");
+      console.error("Eroare:", error);
+
+      if (error.response && error.response.data) {
+        const server = error.response.data;
+
+        const normalized = {};
+        Object.entries(server).forEach(([key, val]) => {
+          if (Array.isArray(val)) normalized[key] = val[0];
+          else if (typeof val === "string") normalized[key] = val;
+          else normalized[key] = JSON.stringify(val);
+        });
+
+        setErrors(normalized);
+
+        alert("Nu s-a putut salva evenimentul. Verifică câmpurile marcate.");
+        return;
+      }
+
+      alert("A apărut o eroare de conexiune. Verifică dacă serverul e pornit.");
     }
   };
 
   const handleSaveDraft = (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     sendEventData("draft");
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    sendEventData("pending"); 
+    sendEventData("pending");
   };
+
+  const refs = {
+    title: useRef(null),
+    description: useRef(null),
+    category: useRef(null),
+    start_date: useRef(null),
+    end_date: useRef(null),
+    location_name: useRef(null),
+    location_address: useRef(null),
+    max_participants: useRef(null),
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -215,6 +403,7 @@ const CreateEventModal = ({ isOpen, onClose }) => {
               <div className={styles.colWide}>
                 <label className={styles.label}>Titlu Eveniment</label>
                 <input
+                  ref={refs.title}
                   type="text"
                   name="title"
                   placeholder="ex. Hackathon Suceava"
@@ -223,6 +412,9 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   onChange={handleChange}
                   required
                 />
+                {errors.title && (
+                  <div className={styles.fieldError}>{errors.title}</div>
+                )}
               </div>
               <div className={styles.colNarrow}>
                 <label className={styles.label}>Locuri Disp.</label>
@@ -235,12 +427,18 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   onChange={handleChange}
                   required
                 />
+                {errors.max_participants && (
+                  <div className={styles.fieldError}>
+                    {errors.max_participants}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className={styles.col}>
               <label className={styles.label}>Descriere & Agendă</label>
               <textarea
+                ref={refs.description}
                 name="description"
                 placeholder="Despre ce este evenimentul..."
                 className={styles.textarea}
@@ -248,36 +446,37 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                 onChange={handleChange}
                 required
               ></textarea>
+              {errors.description && (
+                <div className={styles.fieldError}>{errors.description}</div>
+              )}
             </div>
 
             <div className={styles.col}>
               <label className={styles.label}>Categorie</label>
-              <div className={styles.categoriesWrapper}>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="1" checked={formData.category === "1"} onChange={handleChange} className={styles.radioInput} />
-                    Academic
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="2" checked={formData.category === "2"} onChange={handleChange} className={styles.radioInput} />
-                    Workshop
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="3" checked={formData.category === "3"} onChange={handleChange} className={styles.radioInput} />
-                    Conferință
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="4" checked={formData.category === "4"} onChange={handleChange} className={styles.radioInput} />
-                    Cultural
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="5" checked={formData.category === "5"} onChange={handleChange} className={styles.radioInput} />
-                    Social
-                </label>
-                <label className={styles.radioLabel}>
-                    <input type="radio" name="category" value="6" checked={formData.category === "6"} onChange={handleChange} className={styles.radioInput} />
-                    Sport
-                </label>
+              <div ref={refs.category} className={styles.categoriesWrapper}>
+                {categoriesList.length > 0 ? (
+                  categoriesList.map((cat) => (
+                    <label key={cat.id} className={styles.radioLabel}>
+                      <input
+                        type="radio"
+                        name="category"
+                        value={cat.id}
+                        checked={parseInt(formData.category) === cat.id}
+                        onChange={handleChange}
+                        className={styles.radioInput}
+                      />
+                      {cat.name}
+                    </label>
+                  ))
+                ) : (
+                  <p style={{ fontSize: "0.8rem", color: "red" }}>
+                    Nicio categorie disponibilă.
+                  </p>
+                )}
               </div>
+              {errors.category && (
+                <div className={styles.fieldError}>{errors.category}</div>
+              )}
             </div>
           </div>
 
@@ -290,6 +489,7 @@ const CreateEventModal = ({ isOpen, onClose }) => {
               <div className={styles.col}>
                 <label className={styles.label}>Începe la</label>
                 <input
+                  ref={refs.start_date}
                   type="datetime-local"
                   name="startDate"
                   className={styles.input}
@@ -297,6 +497,9 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   onChange={handleChange}
                   required
                 />
+                {errors.start_date && (
+                  <div className={styles.fieldError}>{errors.start_date}</div>
+                )}
               </div>
               <div className={styles.col}>
                 <label className={styles.label}>Se termină la</label>
@@ -308,6 +511,9 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   onChange={handleChange}
                   required
                 />
+                {errors.end_date && (
+                  <div className={styles.fieldError}>{errors.end_date}</div>
+                )}
               </div>
             </div>
           </div>
@@ -318,6 +524,7 @@ const CreateEventModal = ({ isOpen, onClose }) => {
               <FiCheckCircle /> Afiliere
             </div>
             <div className={styles.row}>
+              {/* FACULTATE */}
               <div className={styles.col}>
                 <label className={styles.label}>
                   Facultate <span style={{ color: "red" }}>*</span>
@@ -330,10 +537,15 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   required
                 >
                   <option value="">Alege...</option>
-                  <option value="1">FIESC</option>
-                  <option value="2">FIMAR</option>
+                  {facultiesList.map((fac) => (
+                    <option key={fac.id} value={fac.id}>
+                      {fac.name} ({fac.abbreviation})
+                    </option>
+                  ))}
                 </select>
               </div>
+
+              {/* DEPARTAMENT */}
               <div className={styles.col}>
                 <label className={styles.label}>Departament</label>
                 <select
@@ -341,9 +553,23 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   className={styles.select}
                   value={formData.department}
                   onChange={handleChange}
+                  // Dacă nu e selectată o facultate, dezactivăm departamentele
+                  disabled={!formData.faculty}
                 >
                   <option value="">Opțional...</option>
-                  <option value="1">Calculatoare</option>
+
+                  {/* Afișăm DOAR departamentele filtrate */}
+                  {filteredDepartments.length > 0
+                    ? filteredDepartments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </option>
+                      ))
+                    : formData.faculty && (
+                        <option disabled>
+                          Această facultate nu are departamente definite.
+                        </option>
+                      )}
                 </select>
               </div>
             </div>
@@ -403,6 +629,11 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   onChange={handleChange}
                   required
                 />
+                {errors.location_name && (
+                  <div className={styles.fieldError}>
+                    {errors.location_name}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -417,6 +648,11 @@ const CreateEventModal = ({ isOpen, onClose }) => {
                   value={formData.locationAddress}
                   onChange={handleChange}
                 />
+                {errors.location_address && (
+                  <div className={styles.fieldError}>
+                    {errors.location_address}
+                  </div>
+                )}
               </div>
 
               <div className={styles.mapContainer}>

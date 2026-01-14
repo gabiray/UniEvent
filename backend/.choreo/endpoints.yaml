@@ -1,0 +1,7 @@
+version: 0.1
+endpoints:
+  - name: "uni-event-backend"
+    port: 8000
+    type: REST
+    networkvisibility: Public
+    context: /

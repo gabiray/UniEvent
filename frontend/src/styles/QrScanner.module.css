@@ -1,0 +1,27 @@
+.wrap {
+  border: 1px solid #eeeeee;
+  background: #fafafa;
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.05);
+}
+
+.reader {
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+/* html5-qrcode injectează video + canvas; noi le “îmblânzim” */
+.reader video,
+.reader canvas {
+  width: 100% !important;
+  height: auto !important;
+  border-radius: 14px;
+}
+
+.hint {
+  margin-top: 10px;
+  color: #666;
+  font-weight: 700;
+  font-size: 0.9rem;
+}

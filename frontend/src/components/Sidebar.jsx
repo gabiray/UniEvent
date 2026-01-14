@@ -10,7 +10,6 @@ const Sidebar = () => {
         navigate('/logout');
     };
 
-    // Definim doar link-urile pentru STUDENT
     const links = [
         { 
             to: "/", 
